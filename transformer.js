@@ -14,14 +14,14 @@ require('./constants');
 
 function addNewlineTransformer(data, callback) {
     // emitting a new buffer as text with newline
-    callback(null, new Buffer(data + "\n", targetEncoding));
+    callback(null, new Buffer(data.toString(targetEncoding) + "\n", targetEncoding));
 };
 exports.addNewlineTransformer = addNewlineTransformer;
 
 /** Convert JSON data to its String representation */
 function jsonToStringTransformer(data, callback) {
     // emitting a new buffer as text with newline
-    callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
+    callback(null, new Buffer(JSON.stringify(data.toString(targetEncoding)) + "\n", targetEncoding));
 };
 exports.jsonToStringTransformer = jsonToStringTransformer;
 
@@ -31,6 +31,18 @@ function doNothingTransformer(data, callback) {
     callback(null, new Buffer(data));
 };
 exports.doNothingTransformer = doNothingTransformer;
+
+/** writes the length of the message in front of it so that can be used for parsing */
+function lengthDelimitedTransformer(data, callback) {
+	var dataBuf = new Buffer(data);
+	var size = dataBuf.length;
+	var lengthBuf = new Buffer(4);
+	lengthBuf.writeInt32LE(size, 0);
+	callback(null, Buffer.concat([lengthBuf, dataBuf], size + 4));
+}
+exports.lengthDelimitedTransformer = lengthDelimitedTransformer;
+
+
 
 /**
  * Example transformer that converts a regular expression to delimited text
@@ -55,7 +67,7 @@ exports.regexToDelimiter = regexToDelimiter;
 
 function transformRecords(serviceName, transformer, userRecords, callback) {
     async.map(userRecords, function(userRecord, userRecordCallback) {
-	var dataItem = serviceName === KINESIS_SERVICE_NAME ? new Buffer(userRecord.data, 'base64').toString(targetEncoding) : userRecord;
+	var dataItem = serviceName === KINESIS_SERVICE_NAME ? new Buffer(userRecord.data, 'base64') : userRecord;
 
 	transformer.call(undefined, dataItem, function(err, transformed) {
 	    if (err) {
